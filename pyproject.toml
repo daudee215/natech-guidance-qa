@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "natech-guidance-qa"
+version = "0.1.0"
+description = "Retrieval-grounded question answering over the JRC Natech risk management guidance, with retrieval measured rather than read"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENCE" }
+authors = [{ name = "M. Daud Tasleem", email = "daudtasleem215@gmail.com" }]
+keywords = ["retrieval augmented generation", "Natech", "risk management", "question answering", "evaluation"]
+
+# Deliberately empty. The corpus validation and the retrieval evaluation decide
+# whether the index is worth building and whether k is high enough, and both
+# should be checkable without a model server running.
+dependencies = []
+
+[project.optional-dependencies]
+rag = ["langchain", "langchain-ollama", "langchain-chroma", "pandas"]
+
+[project.urls]
+Homepage = "https://github.com/daudee215/natech-guidance-qa"
+Related = "https://github.com/daudee215/typed-workflow-layer"
+
+[project.scripts]
+natech-qa = "natech.cli:main"
+
+[tool.setuptools]
+packages = ["natech"]

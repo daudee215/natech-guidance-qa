@@ -1,0 +1,91 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  suite:
+    name: suite, no dependencies
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Suite runs with nothing installed
+        run: python -m unittest discover -s tests -v
+      - name: Demo runs end to end
+        run: python demo.py > /dev/null
+
+  refusal:
+    name: a broken corpus is still refused
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The loader exists to say no. A change that makes it accept an empty
+      # section would leave a green suite and a corpus with holes in it.
+      - name: An empty section must block the load
+        run: |
+          python - <<'PY'
+          import sys, tempfile, os, io
+          from natech import corpus
+          d = tempfile.mkdtemp()
+          p = os.path.join(d, "c.csv")
+          with io.open(p, "w", encoding="utf-8") as h:
+              h.write('Chapter,Title,Content\n1,Fine,"' + "x"*300 + '"\n2,Empty,""\n')
+          try:
+              corpus.load(p)
+          except corpus.CorpusError as e:
+              assert "empty content" in str(e), e
+              print("Refused, and named the row.")
+          else:
+              sys.exit("A corpus with an empty section was accepted.")
+          PY
+
+  corpus-pinned:
+    name: the shipped corpus has not changed shape
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Every retrieval figure in the README is measured against this corpus.
+      # If it changes size, those figures are stale and must be re-measured.
+      - name: 44 chapters, 107312 characters
+        run: |
+          python - <<'PY'
+          from natech import corpus
+          s = corpus.load("data/guidance.csv")
+          stats = corpus.statistics(s)
+          assert stats["sections"] == 44, stats
+          assert stats["characters"] == 107312, stats
+          print("corpus unchanged:", stats)
+          PY
+
+  packaging:
+    name: installs as a package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - name: The corpus layer imports with no backend installed
+        run: |
+          cd /tmp
+          python -c "
+          from natech import corpus, retrieval
+          print('corpus and retrieval import with no langchain present')
+          "

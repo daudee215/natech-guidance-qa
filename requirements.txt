@@ -1,0 +1,6 @@
+# The corpus layer and the retrieval evaluation need none of this.
+# Only the vector store and the answer chain do.
+langchain
+langchain-ollama
+langchain-chroma
+pandas
