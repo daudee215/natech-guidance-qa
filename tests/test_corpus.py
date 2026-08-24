@@ -167,3 +167,74 @@ class TestTheShippedCorpus(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTextDefects(unittest.TestCase):
+    """Extraction artefacts that degrade retrieval without stopping it.
+
+    Half of this class is regression tests. The first version of the
+    prefix rule produced six false positives against three real defects,
+    firing on Figure 1 against Figure 10, on Section 4.6.1 against
+    4.6.1.1, and on a trailing full stop. Each of those is pinned below,
+    because a check that cries wolf gets switched off and then the real
+    three go unnoticed too.
+    """
+
+    def section(self, content, chapter="1"):
+        return corpus.Section(chapter=chapter, title="T", content=content)
+
+    def test_a_footnote_glued_after_a_bracket_is_found(self):
+        found = corpus.text_defects(
+            [self.section("under Directive (2012/18/EC)1 operators must act")])
+        self.assertEqual(len(found), 1)
+        self.assertIn("closing bracket", found[0].problem)
+
+    def test_a_footnote_glued_to_a_word_is_found(self):
+        found = corpus.text_defects(
+            [self.section("leads to hazardous situations3. For example")])
+        self.assertEqual(len(found), 1)
+        self.assertIn("end of a word", found[0].problem)
+
+    def test_a_standard_number_with_a_digit_glued_on_is_found(self):
+        found = corpus.text_defects([
+            self.section("based on ISO-310002 in the context", chapter="3"),
+            self.section("consideration (ISO 31000:2009)", chapter="3.2"),
+        ])
+        self.assertTrue(any("ISO" in f.problem and "glued" in f.problem
+                            for f in found))
+
+    def test_figure_ten_is_not_figure_one_with_a_zero_glued_on(self):
+        found = corpus.text_defects([self.section("see Figure 1 and Figure 10")])
+        self.assertEqual(found, [])
+
+    def test_nested_section_numbers_are_not_a_defect(self):
+        found = corpus.text_defects(
+            [self.section("in Section 4.6.1 and Section 4.6.1.1")])
+        self.assertEqual(found, [])
+
+    def test_a_trailing_full_stop_is_not_a_glued_digit(self):
+        found = corpus.text_defects(
+            [self.section("shown in Table 4. The next table, Table 4, repeats")])
+        self.assertEqual(found, [])
+
+    def test_a_short_index_never_triggers_the_prefix_rule(self):
+        """The one condition that killed the Figure 1 / Figure 10 family."""
+        self.assertFalse(corpus._looks_like_a_standard_number("1"))
+        self.assertFalse(corpus._looks_like_a_standard_number("4.6.1"))
+        self.assertTrue(corpus._looks_like_a_standard_number("31000"))
+
+    def test_a_clean_corpus_reports_nothing(self):
+        found = corpus.text_defects(
+            [self.section("Facilities shall maintain 500 m of separation.")])
+        self.assertEqual(found, [])
+
+    def test_defects_never_block_indexing(self):
+        """They degrade retrieval quietly; they do not make the corpus
+        unusable, and load() must still succeed."""
+        for finding in corpus.text_defects(corpus.read(REAL)):
+            self.assertEqual(finding.severity, "review")
+
+    def test_the_real_corpus_has_exactly_the_three_known_defects(self):
+        """Pinned. If the corpus is re-extracted and this changes, the
+        README figure and the data statement both need updating."""
+        self.assertEqual(len(corpus.text_defects(corpus.load(REAL))), 3)

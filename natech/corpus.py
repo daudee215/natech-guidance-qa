@@ -21,6 +21,7 @@ nothing logged. That is the failure this module exists to stop.
 
 import csv
 import os
+import re
 from dataclasses import dataclass
 from typing import Dict, Iterator, List, Optional, Sequence
 
@@ -136,6 +137,93 @@ def check(sections: Sequence[Section],
                 "heading captured without its body".format(
                     section.characters, minimum_characters),
                 severity="review"))
+
+    return findings
+
+
+# Superscript footnote markers lose their formatting when a PDF is flattened to
+# text and end up welded to the token before them. The guidance has three:
+# "(2012/18/EC)1", "situations3", and "ISO-310002", which is ISO-31000 with a
+# footnote 2 attached. It matters beyond tidiness: "ISO-310002" embeds as a
+# different token from "ISO 31000", so a question about ISO 31000 will not
+# retrieve the chapter that discusses it. Reported at its real size, three
+# instances, and as review rather than blocking, because the corpus is usable.
+GLUED_AFTER_BRACKET = re.compile(r"\)\d(?![\d\w])")
+GLUED_AFTER_WORD = re.compile(r"(?<=[a-z])\d(?![\d\w])")
+NAMED_STANDARD = re.compile(r"\b([A-Z][A-Za-z]{1,14})[\s\-](\d[\d.\-]*)\b")
+
+
+def _is_structural(name: str) -> bool:
+    """Document furniture, whose numbers are meant to vary between mentions."""
+    from .groundedness import STRUCTURAL
+    lowered = name.lower().rstrip(".")
+    return lowered in STRUCTURAL or lowered.rstrip("s") in STRUCTURAL
+
+
+def _looks_like_a_standard_number(number: str) -> bool:
+    """Could this be a standard's number, as opposed to an index?
+
+    ISO 31000 qualifies. Figure 1 does not, and that single condition is what
+    stops the prefix rule firing on Figure 1 against Figure 10.
+    """
+    return number.isdigit() and len(number) >= 4
+
+
+def text_defects(sections: Sequence[Section]) -> List[Finding]:
+    """Extraction artefacts in the body text, worst first.
+
+    Separate from `check` because these do not stop the corpus being indexed.
+    They degrade retrieval quietly, which is harder to notice than a refusal.
+    """
+    findings: List[Finding] = []
+
+    for index, section in enumerate(sections, start=1):
+        for pattern, what in ((GLUED_AFTER_BRACKET, "after a closing bracket"),
+                              (GLUED_AFTER_WORD, "to the end of a word")):
+            for match in pattern.finditer(section.content):
+                context = section.content[max(0, match.start() - 30):match.end() + 5]
+                findings.append(Finding(
+                    index, section.chapter,
+                    "footnote marker glued {0}: ...{1}...".format(
+                        what, re.sub(r"\s+", " ", context).strip()),
+                    severity="review"))
+
+    # The same standard cited with two different numbers, where one number is a
+    # prefix of the other. That is what a glued footnote looks like when there
+    # is no punctuation to give it away, and it is how ISO-310002 was found.
+    #
+    # The first version of this fired on Figure 1 against Figure 10, 11 and 12,
+    # on Section 4.6.1 against 4.6.1.1, and on "Table 4." against "Table 4".
+    # Six false positives against three real defects. Structural names are now
+    # excluded outright, because their numbers are supposed to differ, trailing
+    # punctuation is stripped, and the shorter form has to look like a real
+    # standard number before a prefix means anything at all.
+    numbers_for: Dict[str, Dict[str, int]] = {}
+    for index, section in enumerate(sections, start=1):
+        for match in NAMED_STANDARD.finditer(section.content):
+            name = match.group(1)
+            if _is_structural(name):
+                continue
+            number = match.group(2).strip(".-")
+            if number:
+                numbers_for.setdefault(name.upper(), {}).setdefault(number, index)
+
+    for name, numbers in sorted(numbers_for.items()):
+        for longer, row in sorted(numbers.items()):
+            for shorter in numbers:
+                if not _looks_like_a_standard_number(shorter):
+                    continue
+                if longer == shorter or not longer.startswith(shorter):
+                    continue
+                if not 1 <= len(longer) - len(shorter) <= 2:
+                    continue
+                findings.append(Finding(
+                    row, sections[row - 1].chapter,
+                    "{0} {1} looks like {0} {2} with '{3}' glued on. It "
+                    "embeds as a different token, so a question about "
+                    "{0} {2} will not retrieve this section".format(
+                        name, longer, shorter, longer[len(shorter):]),
+                    severity="review"))
 
     return findings
 

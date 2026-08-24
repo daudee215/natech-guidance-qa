@@ -13,8 +13,8 @@ part is which is stated in every module docstring, and the April files are in `o
 unchanged so the difference is checkable rather than asserted.
 
 ```
-python3 demo.py                                # corpus, validation, retrieval sweep
-python3 -m unittest discover -s tests          # 36 tests, nothing to install
+python3 demo.py                                # corpus, defects, retrieval sweep, groundedness
+python3 -m unittest discover -s tests          # 115 tests, nothing to install
 
 pip install '.[rag]' && ollama pull mxbai-embed-large && ollama pull llama3.2
 python3 -m natech.cli                          # the interactive system
@@ -107,11 +107,61 @@ directory holding some of the corpus, and every run afterwards reuses it. The st
 answers from a subset of the guidance and nothing reports a problem. Reuse is now gated on
 the store holding the expected number of documents, which is cheap to check.
 
-### Citing the section
+### Citing the section, and then checking the citation
 
 Chapter and title were already travelling with every passage and were not being used.
 `answer()` now returns the sections it generated from alongside the text, so retrieval
 failing and generation failing stop looking the same from outside.
+
+That was still not enough to check anything. Knowing an answer came from Chapter 7 does
+not tell anybody whether Chapter 7 says it, and the passage text was being read into the
+prompt and then dropped. It is kept now, which is what makes `Answer.audit()` possible.
+
+`natech/groundedness.py` puts the generated text back against the passages it came from.
+Deciding whether a sentence is entailed by a passage is natural language inference and
+needs a model; there is no NLI model here and a lexical method dressed up as one would be
+worse than nothing, because it would return confident verdicts on exactly the paraphrases
+it cannot read. So this is a screen over the class it can actually check with almost no
+false negatives, which is quantities with units, named standards, and EU directives. A
+number that is not in the source is not in the source, and paraphrase does not hide it.
+
+Four verdicts, run against real corpus text in section 6 of the demo:
+
+| answer | verdict |
+| --- | --- |
+| "Lightning strikes have caused over 90% of all tank fires" | `SUPPORTED` |
+| the same claim with 90% changed to 75% | `UNSUPPORTED` |
+| a true claim about 10 mm, cited to chapter 4.3 instead of 4.6.1.1 | `MISATTRIBUTED` |
+| "Operators should adopt a precautionary approach" | `UNVERIFIABLE` |
+
+The second is the case the retrieval table cannot see: retrieval succeeded, the cited
+chapter is right, and the figure is invented. No recall or MRR number moves.
+
+The fourth is the honest half. That claim is declined, not endorsed. A screen that passed
+it would be converting an unread answer into a checked one in the reader's mind, which is
+worse than having no screen. `checkable_share` reports how much of an answer the method
+had any opinion on at all, so a run where it saw nothing never looks like a clean run.
+
+A fifth verdict, `DERIVED`, covers a number that is absent from every source but equals
+arithmetic over numbers that are present. That is not fabrication, it is the model doing
+sums nobody checked, and it deserves its own label rather than being called a lie.
+
+### Extraction artefacts
+
+Building the screen turned up a defect in the corpus itself. `natech/corpus.py` now looks
+for it: superscript footnote markers welded onto the token before them when the PDF was
+flattened to text. Three instances in 107,312 characters, which is where they are left,
+because a check that inflates its findings gets switched off.
+
+The one with a cost is `ISO-310002`, which is `ISO-31000` with a footnote `2` attached. It
+embeds as a different token, so a question about ISO 31000 will not retrieve chapter 3.
+These are `review`, not `blocking`: they degrade retrieval quietly, which is harder to
+notice than a refusal, and that is the argument for looking for them.
+
+The first version of that check reported nine findings, six of them false. It fired on
+`Figure 1` against `Figure 10`, on `Section 4.6.1` against `4.6.1.1`, and on a trailing
+full stop. Each of those six is now a named regression test, because a check that cries
+wolf gets ignored and then the real three go unnoticed with it.
 
 ## Limits
 
@@ -123,8 +173,16 @@ Read this before the code.
 - **The recall figures above are the keyword baseline**, because the embedding retriever
   needs a running Ollama and cannot be measured in CI. Reproducing the equivalent table
   for the dense retriever is one command locally and is the obvious next run.
-- **Nothing here evaluates the generated answer.** Retrieval recall is a necessary
-  condition for a good answer and nowhere near a sufficient one.
+- **The groundedness screen is not entailment.** It checks quantities, named standards
+  and directives. A claim can be wrong in ways it cannot see, and a `SUPPORTED` verdict
+  means only that nothing checkable was contradicted.
+- **On this corpus the screen has little to work with.** 22 checkable tokens in 107,312
+  characters, because this is prose guidance rather than a table of thresholds. It would
+  be far more effective over a corpus of numeric limits. `checkable_share` is reported
+  precisely so a quiet run is not mistaken for a clean one.
+- **Nothing here evaluates whether the generated answer is *useful*.** Retrieval recall is
+  a necessary condition for a good answer and nowhere near a sufficient one, and
+  groundedness is a floor, not a measure of quality.
 - **Chapter-level chunking is coarse** for the longer sections. The 8,613-character
   section is one unit, and a question about one paragraph of it retrieves all of it.
 - **There is no reranking stage**, so raising k spends context linearly.
@@ -143,7 +201,10 @@ Read this before the code.
    probes rather than assumed to be better.
 4. A reranking stage, so k can rise without the context growing linearly.
 5. Answer-level evaluation, which needs a gold answer per probe and is a much larger job
-   than retrieval recall.
+   than retrieval recall. The groundedness screen is the floor under it, not a substitute:
+   it can say an answer contradicts its sources, never that an answer is good.
+6. An NLI model behind the same `check()` interface, so paraphrase stops coming back
+   `UNVERIFIABLE`. The verdict vocabulary was chosen to survive that swap.
 
 ## Files
 
@@ -151,13 +212,15 @@ Read this before the code.
 | --- | --- |
 | `natech/corpus.py` | loading, validation, and the refusal. August |
 | `natech/store.py` | embedding and the persistent Chroma store. April, with the rebuild gate fixed |
-| `natech/answer.py` | the prompt and the chain. April, with citations added |
+| `natech/answer.py` | the prompt and the chain. April, with citations and the audit added |
+| `natech/groundedness.py` | checking an answer against the passages it came from. August |
 | `natech/retrieval.py` | recall at k, the k sweep, the keyword baseline. August |
+| `natech/corpus.py` extraction checks | footnote markers welded on by the PDF-to-text step. August |
 | `natech/cli.py` | the interactive loop. April |
 | `original/` | the April files, unchanged, for comparison |
 | `data/guidance.csv` | the 44 segmented chapters |
-| `demo.py` | corpus, validation and the retrieval sweep, no dependencies |
-| `tests/` | 36 unittest cases |
+| `demo.py` | corpus, defects, retrieval sweep and groundedness, no dependencies |
+| `tests/` | 115 unittest cases |
 
 ## Source
 
