@@ -1,18 +1,22 @@
 """Tests for the groundedness screen.
 
-The tests that matter here are the negative ones. A checker that says
-SUPPORTED too readily is worse than no checker, because it converts an unread
+The tests that matter here are the negative ones. A checker that passes a
+claim too readily is worse than no checker, because it converts an unread
 answer into a checked one in the reader's mind. So most of what follows is
 about the cases where it must refuse to give a pass: a number that is not in
 the source, a number in the wrong chapter, and a claim with nothing checkable
-in it, which must come back UNVERIFIABLE and never SUPPORTED.
+in it, which must come back UNVERIFIABLE.
+
+The passing verdict is named NOT_CONTRADICTED for the same reason, and
+test_a_negated_claim_still_passes_the_screen pins what that name is admitting.
 """
 
 import unittest
 
 from natech import groundedness as g
-from natech.groundedness import (DERIVED, MISATTRIBUTED, SUPPORTED,
-                                 UNSUPPORTED, UNVERIFIABLE, Evidence)
+from natech.groundedness import (DERIVED, MISATTRIBUTED,
+                                 NOT_CONTRADICTED, UNSUPPORTED,
+                                 UNVERIFIABLE, Evidence)
 
 
 def ev(chapter, content, title="Section"):
@@ -141,9 +145,27 @@ class TestVerdicts(unittest.TestCase):
                 "damage to ordinary buildings."),
     ]
 
-    def test_a_number_present_in_the_evidence_is_supported(self):
+    def test_a_number_present_in_the_evidence_is_not_contradicted(self):
         report = g.check("A separation of 500 m is required.", self.EVIDENCE)
-        self.assertEqual(report.verdict, SUPPORTED)
+        self.assertEqual(report.verdict, NOT_CONTRADICTED)
+
+    def test_a_negated_claim_still_passes_the_screen(self):
+        """The documented limitation, pinned here rather than left to prose.
+
+        The evidence says overpressure above 10 kPa causes damage. This says
+        it does not, and the screen passes it, because 10 kPa is in the
+        evidence and set membership of numeric tokens is the whole of the
+        test. Negation, a substituted subject and an invention carrying no
+        numbers get through the same way.
+
+        That is why the verdict is called NOT_CONTRADICTED. Closing the gap
+        needs an NLI model behind check(), not a longer token list, so this
+        asserts the current behaviour and will fail when that model arrives,
+        which is the point at which the name should be revisited.
+        """
+        report = g.check("Overpressure above 10 kPa does not cause structural "
+                         "damage to ordinary buildings.", self.EVIDENCE)
+        self.assertEqual(report.verdict, NOT_CONTRADICTED)
 
     def test_a_number_absent_from_the_evidence_is_unsupported(self):
         report = g.check("A separation of 800 m is required.", self.EVIDENCE)
@@ -157,12 +179,12 @@ class TestVerdicts(unittest.TestCase):
         self.assertEqual(report.verdict, MISATTRIBUTED)
         self.assertIn("Chapter 7", str(report))
 
-    def test_a_claim_with_nothing_checkable_is_unverifiable_not_supported(self):
+    def test_a_claim_with_nothing_checkable_is_unverifiable_not_a_pass(self):
         """The single most important test in this file."""
         report = g.check("Operators should take a precautionary approach.",
                          self.EVIDENCE)
         self.assertEqual(report.verdict, UNVERIFIABLE)
-        self.assertEqual(report.counts[SUPPORTED], 0)
+        self.assertEqual(report.counts[NOT_CONTRADICTED], 0)
 
     def test_an_invented_directive_is_caught(self):
         report = g.check("This falls under Directive 1999/92/EC.", self.EVIDENCE)
@@ -172,7 +194,7 @@ class TestVerdicts(unittest.TestCase):
         report = g.check(
             "A separation of 500 m is required. A separation of 800 m is also "
             "required.", self.EVIDENCE)
-        self.assertEqual(report.counts[SUPPORTED], 1)
+        self.assertEqual(report.counts[NOT_CONTRADICTED], 1)
         self.assertEqual(report.counts[UNSUPPORTED], 1)
         self.assertEqual(report.verdict, UNSUPPORTED)
 
@@ -223,7 +245,7 @@ class TestReport(unittest.TestCase):
         quiet = g.check("Operators should be careful.", self.EVIDENCE)
         clean = g.check("The threshold is 500 m.", self.EVIDENCE)
         self.assertEqual(quiet.verdict, UNVERIFIABLE)
-        self.assertEqual(clean.verdict, SUPPORTED)
+        self.assertEqual(clean.verdict, NOT_CONTRADICTED)
         self.assertLess(quiet.checkable_share, clean.checkable_share)
 
     def test_the_report_says_the_screen_is_not_entailment(self):

@@ -1,3 +1,7 @@
+# Started as main.py from techwithtim/LocalAIAgentWithRAG
+# (github.com/techwithtim/LocalAIAgentWithRAG), adapted in April 2026 to run
+# over the Natech corpus. That repository carries no licence file, so this
+# file is excluded from the MIT grant in LICENCE.
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from vector import retriever

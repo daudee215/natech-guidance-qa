@@ -25,17 +25,23 @@ Everything else is reported as UNVERIFIABLE rather than passed. A claim with
 nothing checkable in it gets no verdict, and the report says how much of the
 answer fell into that bucket, so nobody mistakes a quiet run for a clean one.
 
-The four verdicts
+The five verdicts
 -----------------
-SUPPORTED     every checkable token appears in the cited evidence
-MISATTRIBUTED the tokens are in the corpus, but not in the section cited for
-              them. The claim may well be true; the citation still does not
-              lead a reader to it, which defeats the point of citing
-DERIVED       the number is not in any source but is arithmetic over numbers
-              that are. Not fabrication, but the model computed something and
-              nothing checked it
-UNSUPPORTED   at least one checkable token appears nowhere in the evidence
-UNVERIFIABLE  nothing checkable in this claim; no opinion offered
+NOT_CONTRADICTED  every checkable token in the claim appears in the cited
+                  evidence. The name is the whole of what the test does: set
+                  membership of numeric tokens. A negated claim, a substituted
+                  subject and an invention with no numbers in it all pass it,
+                  so calling the verdict SUPPORTED would be claiming an
+                  entailment that nothing here established
+MISATTRIBUTED     the tokens are in the corpus, but not in the section cited
+                  for them. The claim may well be true; the citation still
+                  does not lead a reader to it, which defeats the point of
+                  citing
+DERIVED           the number is not in any source but is arithmetic over
+                  numbers that are. Not fabrication, but the model computed
+                  something and nothing checked it
+UNSUPPORTED       at least one checkable token appears nowhere in the evidence
+UNVERIFIABLE      nothing checkable in this claim; no opinion offered
 
 Standard library only, so this runs without Ollama, Chroma or a network.
 """
@@ -44,7 +50,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
-SUPPORTED = "SUPPORTED"
+NOT_CONTRADICTED = "NOT_CONTRADICTED"
 MISATTRIBUTED = "MISATTRIBUTED"
 DERIVED = "DERIVED"
 UNSUPPORTED = "UNSUPPORTED"
@@ -356,8 +362,8 @@ class Report:
 
     @property
     def counts(self) -> Dict[str, int]:
-        result = {v: 0 for v in
-                  (SUPPORTED, MISATTRIBUTED, DERIVED, UNSUPPORTED, UNVERIFIABLE)}
+        result = {v: 0 for v in (NOT_CONTRADICTED, MISATTRIBUTED, DERIVED,
+                                UNSUPPORTED, UNVERIFIABLE)}
         for claim in self.claims:
             result[claim.verdict] += 1
         return result
@@ -372,8 +378,8 @@ class Report:
             return MISATTRIBUTED
         if counts[DERIVED]:
             return DERIVED
-        if counts[SUPPORTED]:
-            return SUPPORTED
+        if counts[NOT_CONTRADICTED]:
+            return NOT_CONTRADICTED
         return UNVERIFIABLE
 
     @property
@@ -400,7 +406,7 @@ class Report:
             "  question          {0}".format(self.question),
             "  sections cited    {0}".format(self.evidence_sections),
             "  claims            {0}".format(len(self.claims)),
-            "  supported         {0}".format(counts[SUPPORTED]),
+            "  not contradicted  {0}".format(counts[NOT_CONTRADICTED]),
             "  misattributed     {0}".format(counts[MISATTRIBUTED]),
             "  derived           {0}".format(counts[DERIVED]),
             "  unsupported       {0}".format(counts[UNSUPPORTED]),
@@ -480,7 +486,7 @@ def check(answer_text: str,
                         derivations[token.value] = how
 
         if not missing:
-            verdict = SUPPORTED
+            verdict = NOT_CONTRADICTED
         elif all(t.value in elsewhere for t in missing):
             verdict = MISATTRIBUTED
         elif all(t.value in elsewhere or t.value in derivations for t in missing):

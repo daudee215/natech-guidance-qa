@@ -2,6 +2,9 @@ MIT License
 
 Copyright (c) 2026 M. Daud Tasleem
 
+This licence covers the code in this repository with two exceptions, stated
+after the grant below.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -19,3 +22,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Exceptions
+----------
+
+The files in original/ started as main.py and vector.py from the public
+tutorial repository techwithtim/LocalAIAgentWithRAG, adapted in April 2026 for
+this corpus. That repository carries no licence file, so it is all rights
+reserved by default and the two adapted files are not covered by this licence.
+
+The guidance text in data/guidance.csv is extracted from the JRC report cited
+in README.md and belongs to its publisher.

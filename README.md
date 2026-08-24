@@ -10,11 +10,20 @@ Politecnico di Torino, DISEG, from October 2025. The system in `natech/store.py`
 `natech/answer.py` was written in April 2026 and is kept as it was. The corpus validation
 and the retrieval evaluation were added in August 2026. Which
 part is which is stated in every module docstring, and the April files are in `original/`
-unchanged so the difference is checkable rather than asserted.
+so the difference is checkable rather than asserted.
+
+The April prototype started from a public tutorial, `techwithtim/LocalAIAgentWithRAG`,
+adapted to this corpus: the CSV, the column names, the collection name, the prompt subject
+and `k` are the parts I changed, and the structure around them is the tutorial's. Both
+files in `original/` now carry a header saying so. That repository has no licence file, so
+it is all rights reserved by default and those two files sit outside the MIT grant in
+`LICENCE`. They also predate this repository, so the git history here does not corroborate
+their April date; what is checkable is the files themselves against the `natech/` package
+that replaced them.
 
 ```
 python3 demo.py                                # corpus, defects, retrieval sweep, groundedness
-python3 -m unittest discover -s tests          # 115 tests, nothing to install
+python3 -m unittest discover -s tests          # 116 tests, nothing to install
 
 pip install '.[rag]' && ollama pull mxbai-embed-large && ollama pull llama3.2
 python3 -m natech.cli                          # the interactive system
@@ -129,9 +138,9 @@ Four verdicts, run against real corpus text in section 6 of the demo:
 
 | answer | verdict |
 | --- | --- |
-| "Lightning strikes have caused over 90% of all tank fires" | `SUPPORTED` |
+| "Lightning strikes have caused over 90% of all tank fires" | `NOT_CONTRADICTED` |
 | the same claim with 90% changed to 75% | `UNSUPPORTED` |
-| a true claim about 10 mm, cited to chapter 4.3 instead of 4.6.1.1 | `MISATTRIBUTED` |
+| "Damage of 10 mm is treated as minor severity", cited to 4.3 instead of 4.6.1.1 | `MISATTRIBUTED` |
 | "Operators should adopt a precautionary approach" | `UNVERIFIABLE` |
 
 The second is the case the retrieval table cannot see: retrieval succeeded, the cited
@@ -174,8 +183,10 @@ Read this before the code.
   needs a running Ollama and cannot be measured in CI. Reproducing the equivalent table
   for the dense retriever is one command locally and is the obvious next run.
 - **The groundedness screen is not entailment.** It checks quantities, named standards
-  and directives. A claim can be wrong in ways it cannot see, and a `SUPPORTED` verdict
-  means only that nothing checkable was contradicted.
+  and directives, so the passing verdict is called `NOT_CONTRADICTED` rather than
+  supported: it means no checkable token was contradicted, not that the evidence entails
+  the claim. A negated claim whose numbers are all in the evidence passes it, and
+  `tests/test_groundedness.py` pins that case so the limit is not only prose.
 - **On this corpus the screen has little to work with.** 22 checkable tokens in 107,312
   characters, because this is prose guidance rather than a table of thresholds. It would
   be far more effective over a corpus of numeric limits. `checkable_share` is reported
@@ -217,18 +228,30 @@ Read this before the code.
 | `natech/retrieval.py` | recall at k, the k sweep, the keyword baseline. August |
 | `natech/corpus.py` extraction checks | footnote markers welded on by the PDF-to-text step. August |
 | `natech/cli.py` | the interactive loop. April |
-| `original/` | the April files, unchanged, for comparison |
+| `original/` | the April files, adapted from the tutorial named above, for comparison |
 | `data/guidance.csv` | the 44 segmented chapters |
 | `demo.py` | corpus, defects, retrieval sweep and groundedness, no dependencies |
-| `tests/` | 115 unittest cases |
+| `tests/` | 116 unittest cases |
 
 ## Source
 
-Krausmann, E. and Necci, A. *Natech risk management: Guidance for operators of hazardous
-installations*. European Commission, Joint Research Centre. The report is a public
-document. The segmentation into 44 chapter-level records is mine.
+Necci, A. and Krausmann, E. (2022). Natech risk management: Guidance for operators of
+hazardous industrial sites and for national authorities. EUR 31122 EN, Publications Office
+of the European Union, Luxembourg. ISBN 978-92-76-53493-8. DOI 10.2760/666413.
+
+The report is © European Union, 2022. The Publications Office states that its publications
+can be downloaded and reproduced provided the source is acknowledged, and directs reusers to
+each publication's own copyright notice
+(https://op.europa.eu/en/web/about-us/legal-notices/publications-office-of-the-european-union-copyright).
+The extract here is redistributed on that basis with the source acknowledged above. If the
+report's own notice imposes a narrower condition, that notice governs and this file will be
+replaced by a script that regenerates it from the published PDF.
+
+The segmentation into 44 chapter-level records is mine.
 
 ## Licence
 
-MIT for the code. See `LICENCE`. The guidance text in `data/guidance.csv` is extracted from
-the JRC report cited above and belongs to its publisher.
+MIT for the code. See `LICENCE`. Two things sit outside that grant: the files in
+`original/`, adapted from a tutorial repository that carries no licence of its own, and the
+guidance text in `data/guidance.csv`, which is extracted from the JRC report cited above
+and belongs to its publisher.

@@ -21,7 +21,7 @@ from .corpus import Section, load
 
 DEFAULT_EMBEDDING_MODEL = "mxbai-embed-large"
 DEFAULT_COLLECTION = "Natech_risk_management"
-DEFAULT_STORE_PATH = "./chrome_langchain_db"
+DEFAULT_STORE_PATH = "./chroma_store"
 DEFAULT_K = 2
 
 

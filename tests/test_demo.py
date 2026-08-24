@@ -96,10 +96,10 @@ class TestTheDemoVerdicts(unittest.TestCase):
     def verdict(self, text, cited=None):
         return g.check(text, self.evidence, cited=cited).verdict
 
-    def test_the_quantity_from_the_corpus_is_supported(self):
+    def test_the_quantity_from_the_corpus_is_not_contradicted(self):
         self.assertEqual(
             self.verdict("Lightning strikes have caused over 90% of all tank fires."),
-            g.SUPPORTED)
+            g.NOT_CONTRADICTED)
 
     def test_changing_that_number_makes_it_unsupported(self):
         self.assertEqual(
@@ -108,7 +108,7 @@ class TestTheDemoVerdicts(unittest.TestCase):
 
     def test_citing_the_wrong_chapter_is_misattributed(self):
         self.assertEqual(
-            self.verdict("Damage of 10 mm is treated as moderate severity.",
+            self.verdict("Damage of 10 mm is treated as minor severity.",
                          cited=["4.3"]),
             g.MISATTRIBUTED)
 
@@ -121,7 +121,7 @@ class TestTheDemoVerdicts(unittest.TestCase):
         verdicts = {
             self.verdict("Lightning strikes have caused over 90% of all tank fires."),
             self.verdict("Lightning strikes have caused over 75% of all tank fires."),
-            self.verdict("Damage of 10 mm is treated as moderate severity.", ["4.3"]),
+            self.verdict("Damage of 10 mm is treated as minor severity.", ["4.3"]),
             self.verdict("Operators should adopt a precautionary approach."),
         }
         self.assertEqual(len(verdicts), 4)

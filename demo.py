@@ -120,7 +120,7 @@ def main():
         ("the same claim with the number changed",
          "Lightning strikes have caused over 75% of all tank fires.", None),
         ("true, but cited to the wrong chapter",
-         "Damage of 10 mm is treated as moderate severity.", ["4.3"]),
+         "Damage of 10 mm is treated as minor severity.", ["4.3"]),
         ("prose with nothing checkable in it",
          "Operators should adopt a precautionary approach throughout.", None),
     ]

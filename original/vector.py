@@ -1,3 +1,8 @@
+# Started as vector.py from techwithtim/LocalAIAgentWithRAG
+# (github.com/techwithtim/LocalAIAgentWithRAG), adapted in April 2026 for the
+# Natech corpus: CSV name, column names, collection name and k. That
+# repository carries no licence file, so this file is excluded from the MIT
+# grant in LICENCE.
 #this is a vector database hosted locally using something called ChromaDB
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma

@@ -11,8 +11,9 @@ the retrieving, the generating and the reporting at once.
 import unittest
 
 from natech.answer import Answer
-from natech.groundedness import (Evidence, MISATTRIBUTED, SUPPORTED,
-                                 UNSUPPORTED, UNVERIFIABLE)
+from natech.groundedness import (Evidence, MISATTRIBUTED,
+                                 NOT_CONTRADICTED, UNSUPPORTED,
+                                 UNVERIFIABLE)
 
 EVIDENCE = (
     Evidence("3", "Siting", "Facilities shall maintain a minimum separation "
@@ -48,7 +49,7 @@ class TestAnswer(unittest.TestCase):
 class TestAudit(unittest.TestCase):
     def test_a_quantity_taken_from_the_evidence_passes(self):
         self.assertEqual(make("A separation of 500 m is required.").audit().verdict,
-                         SUPPORTED)
+                         NOT_CONTRADICTED)
 
     def test_a_fabricated_quantity_is_caught(self):
         """The failure retrieval metrics cannot see: retrieval worked, and the

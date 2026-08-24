@@ -14,7 +14,7 @@ from .store import BackendMissing, DEFAULT_K, build, retriever
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--corpus", default="data/guidance.csv")
-    parser.add_argument("--store", default="./chrome_langchain_db")
+    parser.add_argument("--store", default="./chroma_store")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--k", type=int, default=DEFAULT_K,
                         help="passages retrieved per question. The April value "
